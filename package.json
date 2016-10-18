@@ -1,0 +1,48 @@
+{
+  "name": "zulu",
+  "version": "0.1.0",
+  "description": "Serve up files piping them through npm scripts and bash commands",
+  "main": "src/index.js",
+  "bin": {
+    "zulu": "bin/cmd.js"
+  },
+  "scripts": {
+    "test": "tape tests/*.js",
+    "posttest": "eslint ./"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tornqvist/zulu.git"
+  },
+  "keywords": [
+    "server",
+    "static",
+    "npm",
+    "scripts",
+    "bash",
+    "commands",
+    "pipe",
+    "development"
+  ],
+  "author": "Carl Törnqvist <calle.tornqvist@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tornqvist/zulu/issues"
+  },
+  "homepage": "https://github.com/tornqvist/zulu#readme",
+  "dependencies": {
+    "chalk": "^1.1.3",
+    "mime-types": "^2.1.12",
+    "minimatch": "^3.0.3",
+    "mz": "^2.4.0",
+    "read-pkg-up": "^2.0.0",
+    "subarg": "github:tornqvist/subarg#feature/forward-opts"
+  },
+  "devDependencies": {
+    "babel-eslint": "^7.0.0",
+    "eslint": "^3.8.0",
+    "got": "^6.5.0",
+    "tap-min": "^1.1.0",
+    "tape": "^4.6.2"
+  }
+}
