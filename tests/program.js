@@ -20,7 +20,7 @@ const fetch = (path, next) => server => {
   };
 
   return got(url)
-    .then(res => next(res.body), err => { throw err; })
+    .then(res => next(res), err => { throw err; })
     .then(close, err => {
       close();
       throw err;
@@ -42,21 +42,54 @@ test('resolves to a server', assert => {
 });
 
 test('server static files', assert => {
-  createServer().then(fetch('/index.html', body => {
-    assert.equal(body, html);
+  createServer().then(fetch('/index.html', res => {
+    assert.equal(res.body, html);
     assert.end();
   }), assert.end).catch(assert.end);
 });
 
 test('defaults to index.html', assert => {
-  createServer().then(fetch('/', body => {
-    assert.equal(body, html);
+  createServer().then(fetch('/', res => {
+    assert.equal(res.body, html);
     assert.end();
   }), assert.end).catch(assert.end);
 });
 
-test.skip('throws 404 when file is not found', assert => {
-  assert.end();
+test('throws 404 when file is not found', assert => {
+  createServer()
+    .then(fetch('/noop', assert.fail))
+    .catch(err => assert.equal(err.statusCode, 404))
+    .then(assert.end);
+});
+
+test('sets proper mime types', assert => {
+  const options = {
+    routes: {
+      path: 'dev/*',
+      scripts: [ 'echo -n test' ]
+    }
+  };
+
+  assert.test('gets generated content right', assert => {
+    createServer(options).then(fetch('/dev/null.css', res => {
+      assert.equal(res.headers['content-type'], 'text/css');
+      assert.end();
+    }), assert.end).catch(assert.end);
+  });
+
+  assert.test('gets static content right', assert => {
+    createServer(options).then(fetch('/', res => {
+      assert.equal(res.headers['content-type'], 'text/html');
+      assert.end();
+    }), assert.end).catch(assert.end);
+  });
+
+  assert.test('sets `application/octet-stream` for unrecognized types', assert => {
+    createServer(options).then(fetch('/dev/null.unrecognized', res => {
+      assert.equal(res.headers['content-type'], 'application/octet-stream');
+      assert.end();
+    }), assert.end).catch(assert.end);
+  });
 });
 
 test('normalizes nested routes', assert => {
@@ -67,8 +100,8 @@ test('normalizes nested routes', assert => {
         path: '../index.html'
       }]
     }
-  }).then(fetch('/', body => {
-    assert.equal(body, html);
+  }).then(fetch('/', res => {
+    assert.equal(res.body, html);
     assert.end();
   }), assert.end).catch(assert.end);
 });
@@ -79,8 +112,8 @@ test('executes scripts', assert => {
       path: 'dev/null',
       scripts: [ 'echo -n test' ]
     }
-  }).then(fetch('/dev/null', body => {
-    assert.equal(body, 'test');
+  }).then(fetch('/dev/null', res => {
+    assert.equal(res.body, 'test');
     assert.end();
   }), assert.end).catch(assert.end);
 });
@@ -91,8 +124,8 @@ test('scripts executes relative to root', assert => {
       path: 'foo',
       scripts: [ 'cat index.html' ]
     }
-  }).then(fetch('/foo', body => {
-    assert.equal(body, html);
+  }).then(fetch('/foo', res => {
+    assert.equal(res.body, html);
     assert.end();
   }), assert.end).catch(assert.end);
 });
@@ -103,8 +136,8 @@ test('scripts are piped through scripts', assert => {
       path: 'dev/null',
       scripts: [ 'cat index.html', 'sed s/world/you/g' ]
     }
-  }).then(fetch('/dev/null', body => {
-    assert.equal(body, html.replace(/world/, 'you'));
+  }).then(fetch('/dev/null', res => {
+    assert.equal(res.body, html.replace(/world/, 'you'));
     assert.end();
   }), assert.end).catch(assert.end);
 });
@@ -115,12 +148,20 @@ test('files are piped through scripts', assert => {
       path: './',
       scripts: [ 'sed s/world/you/g' ]
     }
-  }).then(fetch('/', body => {
-    assert.equal(body, html.replace(/world/, 'you'));
+  }).then(fetch('/', res => {
+    assert.equal(res.body, 'Hello you!\n');
     assert.end();
   }), assert.end).catch(assert.end);
 });
 
-test.skip('runs npm scripts', assert => {
-  assert.end();
+test('pipes through npm scripts', assert => {
+  createServer({
+    routes: {
+      path: 'dev/null',
+      scripts: [ 'echo -n world', 'greeting' ]
+    }
+  }).then(fetch('/dev/null', res => {
+    assert.equal(res.body, 'hello world');
+    assert.end();
+  }), assert.end).catch(assert.end);
 });
