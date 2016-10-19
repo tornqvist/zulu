@@ -5,7 +5,7 @@ const { createServer } = require('http');
 const child_process = require('child_process');
 const minimatch = require('minimatch');
 const readPkg = require('read-pkg-up');
-const mime = require('mime-types');
+const { lookup } = require('mime-types');
 const normalizePaths = require('./normalize-paths');
 
 module.exports = (root, options = {}) => {
@@ -35,81 +35,77 @@ module.exports = (root, options = {}) => {
      */
 
     if (npmScripts.includes(cmd[0])) {
-      return child_process.spawn('npm', [ 'run' ].concat(cmd), options);
+      return child_process.spawn('npm', [ 'run', '-s' ].concat(cmd), options);
     } else {
       return child_process.spawn(cmd[0], cmd.slice(1), options);
     }
   };
 
-  const server = createServer((req, res) => {
+  const server = createServer(async (req, res) => {
+    let stream;
     const url = req.url.replace(/^\//, '');
     const file = path.resolve(root, url);
     const match = paths.find(route => minimatch(url, route.path));
     const scripts = (match && match.scripts) ? match.scripts.map(spawn) : [];
 
     /**
-     * Handle when file cannot be found on disk
-     * @param  {Error} err File reading error
-     * @return {Mixed}     Use first script or throw err if missing scripts
+     * Guestimate mimetype based on file extension
      */
 
-    const onFileError = err => {
-      if (!scripts) { throw err; }
-      return scripts.shift().stdout;
-    };
+    res.setHeader('Content-Type', lookup(file) || 'application/octet-stream');
 
     /**
      * Lookup requested url on disk
      */
 
-    fs.stat(file)
-      .then(stats => {
-        if (stats.isFile()) {
-          res.setHeader('Content-Type', mime.lookup(file));
+    try {
+      const stats = await fs.stat(file);
 
-          /**
-           * Use file located on disk
-           */
+      /**
+       * Serve file at requested url or lookup index.html if requesting a dir
+       */
 
-          return fs.createReadStream(file);
+      if (stats.isFile()) {
+        stream = fs.createReadStream(file);
+      } else if (stats.isDirectory()) {
+        const index = path.join(file, 'index.html');
+        const fd = await fs.open(index, 'r');
+        stream = fs.createReadStream(index, { fd });
+        res.setHeader('Content-Type', 'text/html');
+      }
+    } catch (err) {
 
-        } else if (stats.isDirectory()) {
-          const index = path.join(file, 'index.html');
+      /**
+       * If no file could be found and there are no scripts for route, exit
+       */
 
-          /**
-           * Lookup index.html in directory
-           */
-
-          return fs.open(index, 'r').then(fd => {
-            res.setHeader('Content-Type', 'text/html');
-            return fs.createReadStream(index, { fd });
-          }, onFileError);
-        }
-      }, onFileError).then(stream => {
-
-        /**
-         * Pipe stream through all scripts in order
-         */
-
-        const program = scripts.reduce((stream, script) => {
-          stream.pipe(script.stdin);
-          return script.stdout;
-        }, stream);
-
-        /**
-         * Finally, pipe the whole thing through to the response
-         */
-
-        program.pipe(res);
-      }, err => {
-
-        /**
-         * Any kind of error is handeled as a 404
-         */
-
+      if (!scripts.length) {
         res.writeHead(404, err.message);
         res.end();
-      });
+        return;
+      }
+
+      /**
+       * Use the first script in place of missing file
+       */
+
+      stream = scripts.shift().stdout;
+    }
+
+    /**
+     * Pipe stream through all scripts in order
+     */
+
+    const program = scripts.reduce((stream, script) => {
+      stream.pipe(script.stdin);
+      return script.stdout;
+    }, stream);
+
+    /**
+     * Finally, pipe the whole thing through to the response
+     */
+
+    program.pipe(res);
   });
 
   return new Promise((resolve, reject) => {

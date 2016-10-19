@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 /* eslint no-console: 0 */
 
+try {
+  // eslint-disable-next-line no-eval
+  eval('async function noop() { await noop; }');
+} catch (err) {
+  require('babel-register');
+}
+
 const subarg = require('subarg');
 const chalk = require('chalk');
 const createServer = require('../src');
@@ -21,7 +28,7 @@ const README = `
 
     --port, -p    Server port
     --route, r    Create a route for path (relative to parent path)
-    --script, -s  Pipe associated route through script (one or more per route)
+    --script, -s  Pipe associated route through script (zero or more per route)
     --help, -h    Show this information
 
   ${ chalk.bold('Examples') }
@@ -46,7 +53,7 @@ const README = `
 
     - Putting it all together
 
-      ${ chalk.cyan(`$ ${ NAME } -r [ public -r [ **/*.@(jpg|png) -s "imgmin" ]] -r [ src/*.js -s build:js -s uglifyjs ]`) }
+      ${ chalk.cyan(`$ ${ NAME } -r [ public -r [ **/*.@(jpg|png) -s imgmin ]] -r [ src/*.js -s build:js -s uglifyjs ]`) }
 
       ${ chalk.dim(`
       => Serving files from "public"
