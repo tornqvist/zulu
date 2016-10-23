@@ -8,6 +8,7 @@ try {
   require('babel-register');
 }
 
+const { basename } = require('path');
 const subarg = require('subarg');
 const chalk = require('chalk');
 const createServer = require('../src');
@@ -16,7 +17,15 @@ const normalizePaths = require('../src/normalize-paths');
 const alias = { p: 'port', r: 'route', s: 'script', h: 'help' };
 const cwd = process.cwd();
 const argv = subarg(process.argv.slice(2), { forward: true, alias });
-const routes = normalizeInput(argv);
+
+let input;
+if (argv._.length) {
+  input = [ normalizeInput(argv) ];
+} else if (argv.route) {
+  input = asArray(argv.route).map(normalizeInput);
+} else {
+  input = [ normalizeInput(Object.assign({}, argv, { _: [ './' ] })) ];
+}
 
 const NAME = 'zulu';
 const README = `
@@ -72,7 +81,7 @@ process.title = NAME;
  * Print help if missing base path/routes or if user is asking for it
  */
 
-if (!(argv._.length || argv.route) || argv.help) {
+if (argv.help) {
   console.log(README);
   process.exit(0);
 }
@@ -82,10 +91,10 @@ if (!(argv._.length || argv.route) || argv.help) {
  */
 
 createServer(cwd, {
-  routes,
+  routes: input,
   port: argv.port,
 }).then(server => {
-  const paths = normalizePaths(routes);
+  const routes = normalizePaths(input);
 
   /**
    * Print information on server
@@ -94,16 +103,18 @@ createServer(cwd, {
   console.log(`
     Server listening on http://localhost:${ server.address().port }
 
-    ${ paths.map(path => {
-      if (path.scripts.length) {
-        const scripts = path.scripts.map((script, index, list) => {
+    ${ routes.map(route => {
+      const path = route.path ? route.path.join('/') : basename(cwd);
+
+      if (route.scripts.length) {
+        const scripts = route.scripts.map((script, index, list) => {
           const delimiter = index === (list.length - 2) ? ' and' : ',';
           return `"${ script.split(' ')[0] }"${ index !== (list.length - 1) ? delimiter : '' }`;
         });
 
-        return chalk.dim(`=> Piping files from ${ path.path } through ${ scripts.join(' ') }`);
+        return chalk.dim(`=> Piping files from ${ path } through ${ scripts.join(' ') }`);
       } else {
-        return chalk.dim(`=> Serving files from ${ path.path }`);
+        return chalk.dim(`=> Piping files from ${ path }`);
       }
     }).join('\n    ') }
   `);

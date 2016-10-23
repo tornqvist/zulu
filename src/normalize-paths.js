@@ -1,4 +1,4 @@
-const { join } = require('path');
+const assert = require('assert');
 
 /**
  * Flatten tree of nested routes to single dimension array
@@ -8,18 +8,22 @@ const { join } = require('path');
 
 module.exports = routes => {
   const paths = [];
-  const normalizePaths = root => route => {
+  const normalizePaths = parent => route => {
+    assert.ok(route.path, 'Route must have a path');
+
+    const path = parent.concat([ route.path ]);
+
     paths.push({
-      path: join(root, route.path).replace(/\.\//, ''),
+      path,
       scripts: route.scripts || []
     });
 
     if (route.routes) {
-      route.routes.forEach(normalizePaths(route.path));
+      route.routes.forEach(normalizePaths(path));
     }
   };
 
-  normalizePaths('')(routes);
+  routes.forEach(normalizePaths([]));
 
   return paths;
 };

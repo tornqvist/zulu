@@ -4,14 +4,19 @@ const program = require('../src/index');
 
 const createServer = options => program(path.resolve('./fixtures'), options);
 
-test('throws when missing root option', assert => {
-  assert.throws(() => program());
-  assert.end();
+test('rejects when missing root option', assert => {
+  program().then(assert.fail, () => assert.end());
 });
 
-test('throws when missing top route path', assert => {
-  assert.throws(() => program({ routes: {}}));
-  assert.end();
+test('rejects when missing route path', assert => {
+  program({ routes: [{}]}).then(assert.fail, () => assert.end());
+});
+
+test('rejects when scripts are malformed', assert => {
+  program({ routes: [{ path: '', scripts: 'foo' }] }).then(
+    assert.fail,
+    () => assert.end()
+  );
 });
 
 test('respects port option', assert => {
