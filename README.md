@@ -1,5 +1,9 @@
 # zulu
 
+Serve up static files piping them through scripts like a boss.
+
+## Motivation
+
 Building static webpages, which should be pretty straight forward, has become increasingly complicated with all the tooling that comes with modern web development. Just to get up and running, I usually find myself having three terminal windows open, one for serving static files, one for compiling JavaScript (watchify) and another to compile CSS (usually postcss).
 
 Lately it has become increasingly popular using `npm scripts` over task runners such as grunt or gulp. So why not put those same scripts to work serving you fresh compiled assets for every request? That is just what zulu does; fire up a static file server piping select routes through your already defined scripts.
@@ -40,17 +44,17 @@ $ zulu
 
 ```bash
 # Bundle, minify and gzip JavaScript
-$ zulu **/*.js -s 'browserify -t [ babaelify --presets [ es2015 ]]' -s uglifyjs -s 'gzip --to-stdout'
+$ zulu '**/*.js' -s 'browserify - -t [ babaelify --presets [ es2015 ]]' -s uglifyjs -s 'gzip --to-stdout'
 ```
 
 ```bash
 # Compile SASS source files to CSS
-$ zulu **/*.scss -s 'sassc --stdin --sourcemap'
+$ zulu '**/*.scss' -s 'sassc --stdin --sourcemap'
 ```
 
 ```bash
 # Render markdown files to HTML
-$ zulu **/*.md -s 'multimarkdown --full'
+$ zulu '**/*.md' -s 'multimarkdown --full'
 ```
 
 ## Options
@@ -62,5 +66,7 @@ $ zulu **/*.md -s 'multimarkdown --full'
 
 ## TODO
 
+- [ ] Handle multiple paths per route
+- [ ] Speed (constant running processes?)
 - [ ] Support POST
 - [ ] Add caching mechanism

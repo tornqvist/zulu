@@ -1,7 +1,7 @@
 {
   "name": "zulu",
-  "version": "0.1.0",
-  "description": "Serve up files piping them through npm scripts and bash commands",
+  "version": "0.1.1",
+  "description": "Serve up static files piping them through scripts like a boss",
   "main": "src/index.js",
   "bin": {
     "zulu": "bin/cmd.js"

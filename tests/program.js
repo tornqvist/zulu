@@ -8,7 +8,8 @@ const program = require('../src/index');
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
-const html = fs.readFileSync(path.join(FIXTURES, 'index.html'), 'utf-8');
+const ROOT_HTML = fs.readFileSync(path.join(FIXTURES, 'index.html'), 'utf-8');
+const DEEP_HTML = fs.readFileSync(path.join(FIXTURES, 'foo', 'index.html'), 'utf-8');
 const createServer = options => program(FIXTURES, options);
 const fetch = (path, next) => server => {
   const port = server.address().port;
@@ -41,37 +42,50 @@ test('resolves to a server', assert => {
   }, assert.end);
 });
 
-test('server static files', assert => {
+test('serves static files', assert => {
   createServer().then(fetch('/index.html', res => {
-    assert.equal(res.body, html);
+    assert.equal(res.body, ROOT_HTML);
     assert.end();
   }), assert.end).catch(assert.end);
 });
 
 test('defaults to index.html', assert => {
   createServer().then(fetch('/', res => {
-    assert.equal(res.body, html);
+    assert.equal(res.body, ROOT_HTML);
+    assert.end();
+  }), assert.end).catch(assert.end);
+});
+
+test('defaults to index.html for routed paths', assert => {
+  createServer({
+    routes: [{
+      path: 'foo'
+    }]
+  }).then(fetch('/', res => {
+    assert.equal(res.body, DEEP_HTML);
     assert.end();
   }), assert.end).catch(assert.end);
 });
 
 test('throws 404 when file is not found', assert => {
   createServer()
-    .then(fetch('/noop', assert.fail))
+    .then(fetch('/noop', req => assert.fail(`Got: "${ req.body }"`)))
     .catch(err => assert.equal(err.statusCode, 404))
     .then(assert.end);
 });
 
 test('sets proper mime types', assert => {
   const options = {
-    routes: {
+    routes: [{
+      path: '.'
+    }, {
       path: 'dev/*',
       scripts: [ 'echo -n test' ]
-    }
+    }]
   };
 
   assert.test('gets generated content right', assert => {
-    createServer(options).then(fetch('/dev/null.css', res => {
+    createServer(options).then(fetch('/null.css', res => {
       assert.equal(res.headers['content-type'], 'text/css');
       assert.end();
     }), assert.end).catch(assert.end);
@@ -85,34 +99,20 @@ test('sets proper mime types', assert => {
   });
 
   assert.test('sets `application/octet-stream` for unrecognized types', assert => {
-    createServer(options).then(fetch('/dev/null.unrecognized', res => {
+    createServer(options).then(fetch('/null.unrecognized', res => {
       assert.equal(res.headers['content-type'], 'application/octet-stream');
       assert.end();
     }), assert.end).catch(assert.end);
   });
 });
 
-test('normalizes nested routes', assert => {
-  createServer({
-    routes: {
-      path: 'foo',
-      routes: [{
-        path: '../index.html'
-      }]
-    }
-  }).then(fetch('/', res => {
-    assert.equal(res.body, html);
-    assert.end();
-  }), assert.end).catch(assert.end);
-});
-
 test('executes scripts', assert => {
   createServer({
-    routes: {
+    routes: [{
       path: 'dev/null',
       scripts: [ 'echo -n test' ]
-    }
-  }).then(fetch('/dev/null', res => {
+    }]
+  }).then(fetch('/', res => {
     assert.equal(res.body, 'test');
     assert.end();
   }), assert.end).catch(assert.end);
@@ -120,34 +120,34 @@ test('executes scripts', assert => {
 
 test('scripts executes relative to root', assert => {
   createServer({
-    routes: {
+    routes: [{
       path: 'foo',
       scripts: [ 'cat index.html' ]
-    }
-  }).then(fetch('/foo', res => {
-    assert.equal(res.body, html);
+    }]
+  }).then(fetch('/', res => {
+    assert.equal(res.body, ROOT_HTML);
     assert.end();
   }), assert.end).catch(assert.end);
 });
 
 test('scripts are piped through scripts', assert => {
   createServer({
-    routes: {
+    routes: [{
       path: 'dev/null',
       scripts: [ 'cat index.html', 'sed s/world/you/g' ]
-    }
-  }).then(fetch('/dev/null', res => {
-    assert.equal(res.body, html.replace(/world/, 'you'));
+    }]
+  }).then(fetch('/', res => {
+    assert.equal(res.body, ROOT_HTML.replace(/world/, 'you'));
     assert.end();
   }), assert.end).catch(assert.end);
 });
 
 test('files are piped through scripts', assert => {
   createServer({
-    routes: {
+    routes: [{
       path: './',
       scripts: [ 'sed s/world/you/g' ]
-    }
+    }]
   }).then(fetch('/', res => {
     assert.equal(res.body, 'Hello you!\n');
     assert.end();
@@ -156,11 +156,11 @@ test('files are piped through scripts', assert => {
 
 test('pipes through npm scripts', assert => {
   createServer({
-    routes: {
+    routes: [{
       path: 'dev/null',
       scripts: [ 'echo -n world', 'greeting' ]
-    }
-  }).then(fetch('/dev/null', res => {
+    }]
+  }).then(fetch('/', res => {
     assert.equal(res.body, 'hello world');
     assert.end();
   }), assert.end).catch(assert.end);
