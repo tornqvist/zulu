@@ -25,8 +25,8 @@ Zulu is best incorporated into your package.json under `scripts` as so:
   "name": "my-module",
   "version": "1.0.0",
   "scripts": {
-    "build": "npm run build:js & npm run build:css",
-    "build:js": "browserify src/main.js -t [ babelify --presets [ es2015 ]]",
+    "build": "npm run build:js -s > public/main.js & npm run build:css -s > public/main.css",
+    "build:js": "browserify src/main.js -t [ babelify --presets [ es2015 ] ]",
     "build:css": "postcss src/main.css -u postcss-import -u autoprefixer",
     "start": "zulu -r [ public ] -r [ main.js -s build:js ] -r [ main.css -s build:css ]"
   }
@@ -44,7 +44,7 @@ $ zulu
 
 ```bash
 # Bundle, minify and gzip JavaScript
-$ zulu '**/*.js' -s 'browserify - -t [ babaelify --presets [ es2015 ]]' -s uglifyjs -s 'gzip --to-stdout'
+$ zulu '**/*.js' -s 'browserify - -t [ babelify --presets [ es2015 ] ]' -s uglifyjs -s 'gzip --to-stdout'
 ```
 
 ```bash
